@@ -1,689 +1,121 @@
+// ==========================================
+// SKY WAR - COMBATE AÉREO
+// Temática: Segunda Guerra Mundial
+// ==========================================
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const W = canvas.width;
-const H = canvas.height;
+const W = 1100;
+const H = 500;
+const SEA = 305;
 
-const scoreText = document.getElementById("score");
 const livesText = document.getElementById("lives");
-
+const scoreText = document.getElementById("score");
 const startScreen = document.getElementById("startScreen");
 const gameOverScreen = document.getElementById("gameOver");
+const finalScoreText = document.getElementById("finalScore");
 
 let running = false;
 let score = 0;
 let lives = 3;
 let frame = 0;
-let oceanOffset = 0;
 
 const keys = {};
 
-const player = {
-    x: 150,
-    y: 190,
-    width: 115,
-    height: 48,
-    speed: 4,
-    cooldown: 0,
-    bombCooldown: 0,
-    angle: 0
-};
-
+let player;
 let bullets = [];
 let bombs = [];
+let enemyBullets = [];
+let missiles = [];
 let enemies = [];
+let ships = [];
 let explosions = [];
 let particles = [];
+let splashes = [];
 
-// CONTROL DEL JUGADOR
+const rand = (min, max) => Math.random() * (max - min) + min;
+
+// ==========================================
+// INICIALIZACIÓN
+// ==========================================
 
 function resetGame() {
     score = 0;
     lives = 3;
     frame = 0;
 
-    player.x = 150;
-    player.y = 190;
-    player.cooldown = 0;
-    player.bombCooldown = 0;
+    player = {
+        x: 130,
+        y: 125,
+        w: 52,
+        h: 24,
+        speed: 4.2,
+        shootCooldown: 0,
+        bombCooldown: 0,
+        invulnerable: 0
+    };
 
     bullets = [];
     bombs = [];
+    enemyBullets = [];
+    missiles = [];
     enemies = [];
+    ships = [];
     explosions = [];
     particles = [];
+    splashes = [];
 
     updateHUD();
 }
 
 function updateHUD() {
-    scoreText.textContent = score;
     livesText.textContent = lives;
+    scoreText.textContent = score;
 }
-
-// FONDO: CIELO Y OCÉANO
-
-function drawBackground() {
-    const sky = ctx.createLinearGradient(0, 0, 0, 340);
-
-    sky.addColorStop(0, "#07182e");
-    sky.addColorStop(0.65, "#14517a");
-    sky.addColorStop(1, "#64a9c5");
-
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, W, H);
-
-    // Sol luminoso
-
-    const glow = ctx.createRadialGradient(
-        720, 110, 5,
-        720, 110, 150
-    );
-
-    glow.addColorStop(0, "rgba(160,225,255,0.5)");
-    glow.addColorStop(1, "rgba(160,225,255,0)");
-
-    ctx.fillStyle = glow;
-    ctx.fillRect(560, 0, 320, 280);
-
-    // Horizonte
-
-    ctx.fillStyle = "#174b68";
-    ctx.fillRect(0, 320, W, 220);
-
-    // Agua
-
-    const water = ctx.createLinearGradient(0, 325, 0, H);
-
-    water.addColorStop(0, "#126b91");
-    water.addColorStop(0.45, "#064568");
-    water.addColorStop(1, "#031b36");
-
-    ctx.fillStyle = water;
-    ctx.fillRect(0, 325, W, 215);
-
-    // Olas animadas
-
-    oceanOffset += 1.2;
-
-    for (let i = 0; i < 16; i++) {
-        let x = (i * 100 - oceanOffset) % (W + 100);
-
-        ctx.beginPath();
-        ctx.moveTo(x, 345 + i % 3 * 12);
-
-        ctx.quadraticCurveTo(
-            x + 35,
-            335 + i % 3 * 12,
-            x + 75,
-            345 + i % 3 * 12
-        );
-
-        ctx.strokeStyle = "rgba(100,220,255,0.22)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-    }
-}
-
-// AVIÓN PROTAGONISTA
-
-function drawPlayer() {
-    ctx.save();
-
-    ctx.translate(
-        player.x + player.width / 2,
-        player.y + player.height / 2
-    );
-
-    ctx.rotate(player.angle);
-
-    // Sombra
-
-    ctx.fillStyle = "rgba(0,0,0,0.25)";
-    ctx.beginPath();
-    ctx.ellipse(0, 23, 52, 9, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Motor y fuego
-
-    ctx.fillStyle = "#f29b43";
-    ctx.beginPath();
-    ctx.moveTo(-51, -7);
-    ctx.lineTo(-79 - Math.random() * 8, 0);
-    ctx.lineTo(-51, 7);
-    ctx.fill();
-
-    ctx.fillStyle = "#d6f6ff";
-    ctx.beginPath();
-    ctx.moveTo(-50, -3);
-    ctx.lineTo(-66, 0);
-    ctx.lineTo(-50, 3);
-    ctx.fill();
-
-    // Alas inferiores
-
-    const metal = ctx.createLinearGradient(0, -25, 0, 30);
-
-    metal.addColorStop(0, "#f1f5f8");
-    metal.addColorStop(0.45, "#738b9e");
-    metal.addColorStop(1, "#263e52");
-
-    ctx.fillStyle = metal;
-
-    ctx.beginPath();
-    ctx.moveTo(-18, -7);
-    ctx.lineTo(5, -25);
-    ctx.lineTo(45, -20);
-    ctx.lineTo(20, -4);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(-18, 7);
-    ctx.lineTo(5, 25);
-    ctx.lineTo(45, 20);
-    ctx.lineTo(20, 4);
-    ctx.closePath();
-    ctx.fill();
-
-    // Fuselaje
-
-    const body = ctx.createLinearGradient(0, -12, 0, 12);
-
-    body.addColorStop(0, "#f6fbff");
-    body.addColorStop(0.35, "#aebfcd");
-    body.addColorStop(0.7, "#526c80");
-    body.addColorStop(1, "#263c50");
-
-    ctx.fillStyle = body;
-
-    ctx.beginPath();
-    ctx.moveTo(-57, 0);
-    ctx.lineTo(-35, -8);
-    ctx.lineTo(35, -9);
-    ctx.lineTo(59, -2);
-    ctx.lineTo(67, 0);
-    ctx.lineTo(59, 3);
-    ctx.lineTo(35, 9);
-    ctx.lineTo(-35, 8);
-    ctx.closePath();
-    ctx.fill();
-
-    // Cabina
-
-    const glass = ctx.createLinearGradient(0, -12, 0, 0);
-
-    glass.addColorStop(0, "#a9f1ff");
-    glass.addColorStop(1, "#1373a4");
-
-    ctx.fillStyle = glass;
-
-    ctx.beginPath();
-    ctx.moveTo(7, -8);
-    ctx.lineTo(24, -16);
-    ctx.lineTo(39, -8);
-    ctx.lineTo(27, -3);
-    ctx.closePath();
-    ctx.fill();
-
-    // Aleta trasera
-
-    ctx.fillStyle = "#829bad";
-    ctx.beginPath();
-    ctx.moveTo(-43, -6);
-    ctx.lineTo(-54, -20);
-    ctx.lineTo(-28, -9);
-    ctx.closePath();
-    ctx.fill();
-
-    // Líneas metálicas
-
-    ctx.strokeStyle = "#e2f6ff";
-    ctx.lineWidth = 1;
-
-    ctx.beginPath();
-    ctx.moveTo(-28, -3);
-    ctx.lineTo(45, -3);
-    ctx.stroke();
-
-    ctx.restore();
-}
-
-// BARCOS ENEMIGOS
-
-function drawShip(ship) {
-    ctx.save();
-    ctx.translate(ship.x, ship.y);
-
-    const metal = ctx.createLinearGradient(0, -25, 0, 25);
-
-    metal.addColorStop(0, "#b9cbd5");
-    metal.addColorStop(0.5, "#526b7c");
-    metal.addColorStop(1, "#263c50");
-
-    // Casco
-
-    ctx.fillStyle = metal;
-
-    ctx.beginPath();
-    ctx.moveTo(-65, -3);
-    ctx.lineTo(58, -3);
-    ctx.lineTo(72, 9);
-    ctx.lineTo(48, 22);
-    ctx.lineTo(-48, 22);
-    ctx.lineTo(-70, 8);
-    ctx.closePath();
-    ctx.fill();
-
-    // Cubierta
-
-    ctx.fillStyle = "#8299a8";
-    ctx.fillRect(-37, -15, 75, 13);
-
-    // Torre central
-
-    ctx.fillStyle = "#aebdc6";
-    ctx.fillRect(-14, -29, 30, 15);
-
-    // Antena
-
-    ctx.strokeStyle = "#d5e6ed";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, -29);
-    ctx.lineTo(0, -44);
-    ctx.stroke();
-
-    // Cañón estilizado
-
-    ctx.fillStyle = "#263d50";
-    ctx.fillRect(17, -24, 24, 5);
-
-    // Ventanas
-
-    ctx.fillStyle = "#64d8f5";
-
-    for (let i = 0; i < 4; i++) {
-        ctx.fillRect(-29 + i * 15, -11, 8, 5);
-    }
-
-    ctx.restore();
-}
-
-// AVIONES ENEMIGOS
-
-function drawEnemy(enemy) {
-    ctx.save();
-    ctx.translate(enemy.x, enemy.y);
-
-    ctx.scale(-1, 1);
-
-    const metal = ctx.createLinearGradient(0, -20, 0, 20);
-
-    metal.addColorStop(0, "#ffbd81");
-    metal.addColorStop(0.5, "#8d6371");
-    metal.addColorStop(1, "#39485b");
-
-    ctx.fillStyle = metal;
-
-    ctx.beginPath();
-    ctx.moveTo(-38, 0);
-    ctx.lineTo(-20, -7);
-    ctx.lineTo(25, -7);
-    ctx.lineTo(44, 0);
-    ctx.lineTo(25, 7);
-    ctx.lineTo(-20, 7);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(-5, -5);
-    ctx.lineTo(12, -21);
-    ctx.lineTo(33, -15);
-    ctx.lineTo(15, -3);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = "#b5efff";
-    ctx.beginPath();
-    ctx.moveTo(10, -7);
-    ctx.lineTo(25, -13);
-    ctx.lineTo(33, -7);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.restore();
-}
-
-// DISPAROS DEL JUGADOR
-
-function shoot() {
-    if (player.cooldown > 0) return;
-
-    bullets.push({
-        x: player.x + 65,
-        y: player.y + 20,
-        speed: 9
-    });
-
-    player.cooldown = 13;
-}
-
-// LANZAMIENTO DE BOMBAS
-
-function dropBomb() {
-    if (player.bombCooldown > 0) return;
-
-    bombs.push({
-        x: player.x + 35,
-        y: player.y + 35,
-        vy: 2
-    });
-
-    player.bombCooldown = 55;
-}
-
-// GENERACIÓN DE ENEMIGOS
-
-function spawnEnemies() {
-    if (frame % 180 === 0) {
-        enemies.push({
-            type: "ship",
-            x: W + 100,
-            y: 410 + Math.random() * 65,
-            hp: 3,
-            speed: 1.5
-        });
-    }
-
-    if (frame % 115 === 0) {
-        enemies.push({
-            type: "plane",
-            x: W + 50,
-            y: 70 + Math.random() * 220,
-            hp: 1,
-            speed: 2.4,
-            phase: Math.random() * 6
-        });
-    }
-}
-
-// EXPLOSIONES
-
-function createExplosion(x, y) {
-    explosions.push({
-        x,
-        y,
-        radius: 5,
-        alpha: 1
-    });
-
-    for (let i = 0; i < 12; i++) {
-        particles.push({
-            x,
-            y,
-            vx: (Math.random() - 0.5) * 6,
-            vy: (Math.random() - 0.5) * 6,
-            life: 30
-        });
-    }
-}
-
-function drawEffects() {
-    explosions.forEach(e => {
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,150,45,${e.alpha})`;
-        ctx.fill();
-    });
-
-    particles.forEach(p => {
-        ctx.fillStyle = `rgba(255,200,120,${p.life / 30})`;
-        ctx.fillRect(p.x, p.y, 4, 4);
-    });
-}
-
-// ACTUALIZACIÓN DE LOS ELEMENTOS
-
-function update() {
-    frame++;
-
-    // Movimiento del avión
-
-    if (keys.up) player.y -= player.speed;
-    if (keys.down) player.y += player.speed;
-    if (keys.left) player.x -= player.speed;
-    if (keys.right) player.x += player.speed;
-
-    player.x = Math.max(20, Math.min(W - 120, player.x));
-    player.y = Math.max(20, Math.min(340, player.y));
-
-    // Inclinación visual
-
-    player.angle = keys.up ? -0.12 : keys.down ? 0.12 : 0;
-
-    if (keys.shoot) shoot();
-    if (keys.bomb) dropBomb();
-
-    if (player.cooldown > 0) player.cooldown--;
-    if (player.bombCooldown > 0) player.bombCooldown--;
-
-    // Movimiento de disparos
-
-    bullets.forEach(b => b.x += b.speed);
-    bullets = bullets.filter(b => b.x < W + 20);
-
-    // Bombas
-
-    bombs.forEach(b => {
-        b.x += 1;
-        b.y += b.vy;
-        b.vy += 0.12;
-    });
-
-    bombs = bombs.filter(b => b.y < H + 30);
-
-    // Enemigos
-
-    spawnEnemies();
-
-    enemies.forEach(e => {
-        e.x -= e.speed;
-
-        if (e.type === "plane") {
-            e.y += Math.sin(frame * 0.045 + e.phase) * 1.5;
-        }
-    });
-
-    // Colisiones de disparos
-
-    bullets.forEach(b => {
-        enemies.forEach(e => {
-            if (
-                !e.dead &&
-                Math.abs(b.x - e.x) < 55 &&
-                Math.abs(b.y - e.y) < 35
-            ) {
-                e.hp--;
-                b.x = W + 100;
-
-                if (e.hp <= 0) {
-                    e.dead = true;
-                    score += e.type === "ship" ? 100 : 50;
-                    createExplosion(e.x, e.y);
-                    updateHUD();
-                }
-            }
-        });
-    });
-
-    // Colisiones de bombas
-
-    bombs.forEach(b => {
-        enemies.forEach(e => {
-            if (
-                !e.dead &&
-                Math.abs(b.x - e.x) < 65 &&
-                Math.abs(b.y - e.y) < 40
-            ) {
-                e.dead = true;
-                b.y = H + 100;
-                score += 100;
-                createExplosion(e.x, e.y);
-                updateHUD();
-            }
-        });
-    });
-
-    // Enemigos que salen de pantalla
-
-    enemies = enemies.filter(e => e.x > -100 && !e.dead);
-
-    // Contacto entre avión y enemigo
-
-    enemies.forEach(e => {
-        if (
-            Math.abs(player.x + 55 - e.x) < 45 &&
-            Math.abs(player.y + 24 - e.y) < 35
-        ) {
-            e.dead = true;
-            createExplosion(e.x, e.y);
-            lives--;
-            updateHUD();
-
-            if (lives <= 0) endGame();
-        }
-    });
-
-    enemies = enemies.filter(e => !e.dead);
-
-    // Animación de explosiones
-
-    explosions.forEach(e => {
-        e.radius += 2;
-        e.alpha -= 0.035;
-    });
-
-    explosions = explosions.filter(e => e.alpha > 0);
-
-    particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life--;
-    });
-
-    particles = particles.filter(p => p.life > 0);
-}
-
-// DIBUJO DE DISPAROS Y BOMBAS
-
-function drawProjectiles() {
-    bullets.forEach(b => {
-        ctx.fillStyle = "#8af3ff";
-        ctx.shadowColor = "#00d9ff";
-        ctx.shadowBlur = 12;
-
-        ctx.fillRect(b.x, b.y, 17, 4);
-
-        ctx.shadowBlur = 0;
-    });
-
-    bombs.forEach(b => {
-        ctx.fillStyle = "#26394d";
-        ctx.beginPath();
-        ctx.ellipse(b.x, b.y, 6, 12, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = "#d5e2e9";
-        ctx.fillRect(b.x - 2, b.y - 10, 4, 4);
-    });
-}
-
-// DIBUJO GENERAL
-
-function draw() {
-    drawBackground();
-
-    enemies.forEach(e => {
-        if (e.type === "ship") {
-            drawShip(e);
-        } else {
-            drawEnemy(e);
-        }
-    });
-
-    drawProjectiles();
-    drawPlayer();
-    drawEffects();
-}
-
-// BUCLE DEL VIDEOJUEGO
-
-function gameLoop() {
-    if (!running) return;
-
-    update();
-    draw();
-
-    requestAnimationFrame(gameLoop);
-}
-
-// FINALIZAR PARTIDA
-
-function endGame() {
-    running = false;
-
-    document.getElementById("finalScore").textContent = score;
-    gameOverScreen.classList.remove("hidden");
-}
-
-// INICIAR Y REINICIAR
 
 function startGame() {
     resetGame();
-
+    running = true;
     startScreen.classList.add("hidden");
     gameOverScreen.classList.add("hidden");
-
-    running = true;
-    gameLoop();
 }
 
 document.getElementById("startBtn").addEventListener("click", startGame);
 document.getElementById("restartBtn").addEventListener("click", startGame);
 
+// ==========================================
 // CONTROLES DE TECLADO
-
-const keyMap = {
-    ArrowUp: "up",
-    ArrowDown: "down",
-    ArrowLeft: "left",
-    ArrowRight: "right",
-    w: "up",
-    s: "down",
-    a: "left",
-    d: "right",
-    " ": "shoot",
-    x: "bomb"
-};
+// ==========================================
 
 window.addEventListener("keydown", e => {
-    const key = keyMap[e.key];
+    const key = e.key.toLowerCase();
 
-    if (key) {
+    if (
+        [" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)
+    ) {
         e.preventDefault();
-        keys[key] = true;
     }
+
+    keys[key] = true;
+
+    if (!running) return;
+
+    if (key === " " && !e.repeat) shoot();
+    if (key === "x" && !e.repeat) dropBomb();
 });
 
 window.addEventListener("keyup", e => {
-    const key = keyMap[e.key];
-
-    if (key) keys[key] = false;
+    keys[e.key.toLowerCase()] = false;
 });
 
+window.addEventListener("blur", () => {
+    for (const key in keys) keys[key] = false;
+});
+
+// ==========================================
 // CONTROLES TÁCTILES
+// ==========================================
 
 document.querySelectorAll("[data-key]").forEach(button => {
     const key = button.dataset.key;
@@ -691,10 +123,10 @@ document.querySelectorAll("[data-key]").forEach(button => {
     button.addEventListener("pointerdown", e => {
         e.preventDefault();
         keys[key] = true;
-        button.setPointerCapture(e.pointerId);
     });
 
-    const release = () => {
+    const release = e => {
+        e.preventDefault();
         keys[key] = false;
     };
 
@@ -703,8 +135,788 @@ document.querySelectorAll("[data-key]").forEach(button => {
     button.addEventListener("lostpointercapture", release);
 });
 
-// PANTALLA INICIAL
+document.querySelectorAll("[data-action]").forEach(button => {
+    button.addEventListener("pointerdown", e => {
+        e.preventDefault();
 
-drawBackground();
-drawPlayer();
+        if (!running) return;
+
+        if (button.dataset.action === "shoot") shoot();
+        if (button.dataset.action === "bomb") dropBomb();
+    });
+});
+
+// ==========================================
+// DISPAROS DEL JUGADOR
+// ==========================================
+
+function shoot() {
+    if (!running || player.shootCooldown > 0) return;
+
+    bullets.push({
+        x: player.x + player.w,
+        y: player.y + player.h / 2,
+        vx: 10,
+        vy: 0,
+        radius: 3,
+        gravity: 0.035
+    });
+
+    player.shootCooldown = 10;
+}
+
+// ==========================================
+// BOMBAS DEL JUGADOR
+// ==========================================
+
+function dropBomb() {
+    if (!running || player.bombCooldown > 0) return;
+
+    bombs.push({
+        x: player.x + player.w / 2,
+        y: player.y + player.h,
+        vx: 1.1,
+        vy: 2.2,
+        radius: 7
+    });
+
+    player.bombCooldown = 38;
+}
+
+// ==========================================
+// CREACIÓN DE ENEMIGOS
+// ==========================================
+
+function createEnemy() {
+    enemies.push({
+        x: W + 70,
+        y: rand(40, 205),
+        w: 66,
+        h: 32,
+        hp: 5,
+        maxHp: 5,
+        speed: rand(1.7, 2.7),
+        phase: rand(0, Math.PI * 2),
+        shootCooldown: rand(65, 120),
+        missileCooldown: rand(180, 270)
+    });
+}
+
+function createShip() {
+    ships.push({
+        x: W + 100,
+        y: SEA - 70,
+        w: 180,
+        h: 65,
+        hp: 2,
+        maxHp: 2,
+        speed: 1.1,
+        shootCooldown: rand(90, 140)
+    });
+}
+
+// ==========================================
+// PROYECTILES ENEMIGOS
+// ==========================================
+
+function enemyShoot(x, y) {
+    const targetX = player.x + player.w / 2;
+    const targetY = player.y + player.h / 2;
+
+    const dx = targetX - x;
+    const dy = targetY - y;
+    const length = Math.sqrt(dx * dx + dy * dy) || 1;
+
+    enemyBullets.push({
+        x,
+        y,
+        vx: (dx / length) * 5,
+        vy: (dy / length) * 5,
+        radius: 4,
+        gravity: 0.025
+    });
+}
+
+// ==========================================
+// MISILES ENEMIGOS
+// ==========================================
+
+function enemyMissile(x, y) {
+    const targetX = player.x + player.w / 2;
+    const targetY = player.y + player.h / 2;
+
+    const dx = targetX - x;
+    const dy = targetY - y;
+    const length = Math.sqrt(dx * dx + dy * dy) || 1;
+
+    missiles.push({
+        x,
+        y,
+        vx: (dx / length) * 3.4,
+        vy: (dy / length) * 3.4,
+        angle: Math.atan2(dy, dx),
+        life: 135
+    });
+}
+
+// ==========================================
+// EFECTOS DE EXPLOSIÓN
+// ==========================================
+
+function createExplosion(x, y, size = 1) {
+    explosions.push({
+        x,
+        y,
+        radius: 5,
+        maxRadius: 35 * size,
+        life: 25,
+        maxLife: 25
+    });
+
+    const amount = Math.floor(22 * size);
+
+    for (let i = 0; i < amount; i++) {
+        const angle = rand(0, Math.PI * 2);
+        const speed = rand(1, 4.5);
+
+        particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            gravity: 0.07,
+            life: rand(18, 38),
+            size: rand(2, 5),
+            water: false
+        });
+    }
+}
+
+// ==========================================
+// EFECTOS EN EL AGUA
+// ==========================================
+
+function createSplash(x, y) {
+    splashes.push({
+        x,
+        y,
+        life: 22,
+        maxLife: 22
+    });
+
+    for (let i = 0; i < 9; i++) {
+        particles.push({
+            x,
+            y,
+            vx: rand(-2.5, 2.5),
+            vy: rand(-3.5, -0.5),
+            gravity: 0.14,
+            life: rand(12, 20),
+            size: rand(2, 4),
+            water: true
+        });
+    }
+}
+
+// ==========================================
+// DESTRUCCIÓN DEL JUGADOR
+// ==========================================
+
+function destroyPlayer() {
+    if (!running || player.invulnerable > 0) return;
+
+    createExplosion(
+        player.x + player.w / 2,
+        player.y + player.h / 2,
+        1.5
+    );
+
+    lives--;
+    updateHUD();
+
+    if (lives <= 0) {
+        running = false;
+        finalScoreText.textContent = score;
+        gameOverScreen.classList.remove("hidden");
+        return;
+    }
+
+    player.x = 130;
+    player.y = 125;
+    player.invulnerable = 110;
+}
+
+// ==========================================
+// DESTRUCCIÓN DE AVIONES Y BARCOS
+// ==========================================
+
+function destroyEnemy(enemy) {
+    createExplosion(
+        enemy.x + enemy.w / 2,
+        enemy.y + enemy.h / 2,
+        1.3
+    );
+
+    enemies = enemies.filter(item => item !== enemy);
+
+    score += 100;
+    updateHUD();
+}
+
+function destroyShip(ship) {
+    createExplosion(
+        ship.x + ship.w / 2,
+        ship.y + ship.h / 2,
+        2
+    );
+
+    ships = ships.filter(item => item !== ship);
+
+    score += 250;
+    updateHUD();
+}
+
+// ==========================================
+// FONDO: CIELO Y MAR
+// ==========================================
+
+function drawBackground() {
+    let topColor;
+    let bottomColor;
+
+    if (score < 500) {
+        topColor = "#66b9e8";
+        bottomColor = "#c9e8f4";
+    } else if (score < 1000) {
+        topColor = "#718fa7";
+        bottomColor = "#d0d9df";
+    } else if (score < 1500) {
+        topColor = "#d6a36e";
+        bottomColor = "#f3d6a4";
+    } else if (score < 2000) {
+        topColor = "#bd7664";
+        bottomColor = "#e9b39a";
+    } else {
+        topColor = "#172b4c";
+        bottomColor = "#637c9c";
+    }
+
+    const sky = ctx.createLinearGradient(0, 0, 0, SEA);
+    sky.addColorStop(0, topColor);
+    sky.addColorStop(1, bottomColor);
+
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, SEA);
+
+    // NUBES
+
+    ctx.fillStyle = "rgba(255,255,255,0.62)";
+
+    for (let i = 0; i < 7; i++) {
+        let x = (
+            i * 190 - frame * 0.35 + W + 200
+        ) % (W + 200);
+
+        const y = 42 + (i % 3) * 65;
+
+        ctx.beginPath();
+        ctx.arc(x, y, 23, 0, Math.PI * 2);
+        ctx.arc(x + 25, y - 8, 29, 0, Math.PI * 2);
+        ctx.arc(x + 53, y, 23, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // MAR
+
+    const sea = ctx.createLinearGradient(0, SEA, 0, H);
+    sea.addColorStop(0, "#15547a");
+    sea.addColorStop(1, "#071e36");
+
+    ctx.fillStyle = sea;
+    ctx.fillRect(0, SEA, W, H - SEA);
+
+    // OLAS
+
+    ctx.strokeStyle = "rgba(150,210,230,0.35)";
+    ctx.lineWidth = 2;
+
+    for (let i = 0; i < 18; i++) {
+        const x = (i * 95 - frame * 1.7) % (W + 100);
+
+        ctx.beginPath();
+        ctx.moveTo(x, SEA + 25 + (i % 4) * 35);
+        ctx.lineTo(x + 48, SEA + 25 + (i % 4) * 35);
+        ctx.stroke();
+    }
+
+    ctx.fillStyle = "#a5d3e4";
+    ctx.fillRect(0, SEA, W, 2);
+}
+
+// ==========================================
+// AVIÓN PRINCIPAL: MODELO DE HÉLICE
+// ==========================================
+
+function drawPlayer() {
+    if (player.invulnerable > 0 && frame % 8 < 4) return;
+
+    ctx.save();
+
+    ctx.translate(
+        player.x + player.w / 2,
+        player.y + player.h / 2
+    );
+
+    const tilt =
+        keys["arrowup"] || keys["w"] || keys["up"] ? -0.12 :
+        keys["arrowdown"] || keys["s"] || keys["down"] ? 0.12 : 0;
+
+    ctx.rotate(tilt);
+
+    // HÉLICE
+
+    ctx.fillStyle = "#343b40";
+    ctx.fillRect(-27, -3, 4, 6);
+
+    ctx.fillStyle = "#c4cdd0";
+    ctx.fillRect(-31, -10, 3, 20);
+
+    // ALA TRASERA
+
+    ctx.fillStyle = "#626e74";
+
+    ctx.beginPath();
+    ctx.moveTo(-8, -4);
+    ctx.lineTo(1, -14);
+    ctx.lineTo(13, -14);
+    ctx.lineTo(8, -3);
+    ctx.fill();
+
+    // ALA PRINCIPAL
+
+    const wing = ctx.createLinearGradient(0, -15, 0, 15);
+    wing.addColorStop(0, "#d8dfe1");
+    wing.addColorStop(0.5, "#78868d");
+    wing.addColorStop(1, "#414d54");
+
+    ctx.fillStyle = wing;
+
+    ctx.beginPath();
+    ctx.moveTo(-10, -4);
+    ctx.lineTo(0, -14);
+    ctx.lineTo(19, -14);
+    ctx.lineTo(9, -3);
+    ctx.lineTo(19, 14);
+    ctx.lineTo(0, 14);
+    ctx.lineTo(-10, 4);
+    ctx.fill();
+
+    // FUSELAJE
+
+    const body = ctx.createLinearGradient(0, -5, 0, 5);
+    body.addColorStop(0, "#e0e5e5");
+    body.addColorStop(0.5, "#8b989d");
+    body.addColorStop(1, "#536067");
+
+    ctx.fillStyle = body;
+
+    ctx.beginPath();
+    ctx.moveTo(-27, -4);
+    ctx.lineTo(20, -5);
+    ctx.lineTo(28, 0);
+    ctx.lineTo(20, 5);
+    ctx.lineTo(-27, 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // CABINA
+
+    ctx.fillStyle = "#263f50";
+    ctx.beginPath();
+    ctx.ellipse(5, -2, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "#d7e1e4";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+// ==========================================
+// AVIONES ENEMIGOS
+// ==========================================
+
+function drawEnemy(enemy) {
+    ctx.save();
+
+    ctx.translate(
+        enemy.x + enemy.w / 2,
+        enemy.y + enemy.h / 2
+    );
+
+    ctx.scale(-1, 1);
+
+    // HÉLICE
+
+    ctx.fillStyle = "#424c50";
+    ctx.fillRect(-33, -3, 3, 6);
+
+    ctx.fillStyle = "#c2c9ca";
+    ctx.fillRect(-36, -9, 2, 18);
+
+    // FUSELAJE
+
+    ctx.fillStyle = "#737e82";
+
+    ctx.beginPath();
+    ctx.moveTo(-32, -4);
+    ctx.lineTo(22, -5);
+    ctx.lineTo(33, 0);
+    ctx.lineTo(22, 5);
+    ctx.lineTo(-32, 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // ALAS
+
+    const wing = ctx.createLinearGradient(0, -16, 0, 16);
+    wing.addColorStop(0, "#d0d7d8");
+    wing.addColorStop(1, "#566268");
+
+    ctx.fillStyle = wing;
+
+    ctx.beginPath();
+    ctx.moveTo(-8, -4);
+    ctx.lineTo(3, -16);
+    ctx.lineTo(20, -15);
+    ctx.lineTo(11, -3);
+    ctx.lineTo(20, 15);
+    ctx.lineTo(3, 16);
+    ctx.lineTo(-8, 4);
+    ctx.fill();
+
+    // CABINA
+
+    ctx.fillStyle = "#203c4b";
+    ctx.beginPath();
+    ctx.ellipse(5, -2, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // BARRA DE RESISTENCIA
+
+    ctx.fillStyle = "#293238";
+    ctx.fillRect(enemy.x + 8, enemy.y - 10, 48, 4);
+
+    ctx.fillStyle = "#d04d3d";
+    ctx.fillRect(
+        enemy.x + 8,
+        enemy.y - 10,
+        48 * (enemy.hp / enemy.maxHp),
+        4
+    );
+}
+
+// ==========================================
+// BARCOS DE GUERRA GRANDES
+// ==========================================
+
+function drawShip(ship) {
+    ctx.save();
+    ctx.translate(ship.x, ship.y);
+
+    // CASCO METÁLICO
+
+    const hull = ctx.createLinearGradient(0, 28, 0, 65);
+    hull.addColorStop(0, "#c1c9cc");
+    hull.addColorStop(0.45, "#747f85");
+    hull.addColorStop(1, "#3e4a50");
+
+    ctx.fillStyle = hull;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 30);
+    ctx.lineTo(ship.w, 30);
+    ctx.lineTo(ship.w - 23, 59);
+    ctx.lineTo(25, 59);
+    ctx.closePath();
+    ctx.fill();
+
+    // CUBIERTA
+
+    ctx.fillStyle = "#89969b";
+    ctx.fillRect(25, 19, 125, 12);
+
+    // ESTRUCTURA CENTRAL
+
+    ctx.fillStyle = "#c5cdce";
+    ctx.fillRect(58, 2, 55, 20);
+
+    ctx.fillStyle = "#56646a";
+    ctx.fillRect(73, -9, 25, 12);
+
+    // VENTANAS
+
+    ctx.fillStyle = "#273d4b";
+
+    for (let i = 0; i < 5; i++) {
+        ctx.fillRect(63 + i * 9, 7, 5, 5);
+    }
+
+    // TORRETAS DECORATIVAS
+
+    ctx.fillStyle = "#424e53";
+
+    for (let i = 0; i < 2; i++) {
+        const x = 34 + i * 90;
+
+        ctx.fillRect(x, 17, 21, 7);
+        ctx.fillRect(x + 8, 10, 4, 10);
+        ctx.fillRect(x + 8, 7, 22, 3);
+    }
+
+    // CHIMENEA
+
+    ctx.fillStyle = "#515b60";
+    ctx.fillRect(118, 1, 14, 18);
+
+    ctx.fillStyle = "#28363d";
+    ctx.fillRect(118, 0, 14, 4);
+
+    ctx.restore();
+
+    // BARRA DE RESISTENCIA
+
+    ctx.fillStyle = "#28343b";
+    ctx.fillRect(ship.x + 40, ship.y - 12, 90, 5);
+
+    ctx.fillStyle = "#d49a3e";
+    ctx.fillRect(
+        ship.x + 40,
+        ship.y - 12,
+        90 * (ship.hp / ship.maxHp),
+        5
+    );
+}
+
+// ==========================================
+// DIBUJAR PROYECTILES
+// ==========================================
+
+function drawBullets() {
+    // BALAS DEL JUGADOR
+
+    bullets.forEach(b => {
+        ctx.fillStyle = "#ffe49b";
+
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255,220,140,0.4)";
+        ctx.fillRect(b.x - 14, b.y - 1, 12, 2);
+    });
+
+    // PROYECTILES ENEMIGOS
+
+    enemyBullets.forEach(b => {
+        ctx.fillStyle = "#ff9a55";
+
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // MISILES ENEMIGOS
+
+    missiles.forEach(m => {
+        ctx.save();
+        ctx.translate(m.x, m.y);
+        ctx.rotate(m.angle);
+
+        ctx.fillStyle = "#3e464a";
+        ctx.fillRect(-10, -4, 20, 8);
+
+        ctx.fillStyle = "#b9c1c4";
+
+        ctx.beginPath();
+        ctx.moveTo(10, -4);
+        ctx.lineTo(17, 0);
+        ctx.lineTo(10, 4);
+        ctx.fill();
+
+        ctx.fillStyle = "#d58b36";
+        ctx.fillRect(-13, -2, 4, 4);
+
+        ctx.restore();
+    });
+
+    // BOMBAS
+
+    bombs.forEach(b => {
+        ctx.fillStyle = "#313a40";
+
+        ctx.beginPath();
+        ctx.ellipse(b.x, b.y, 5, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+// ==========================================
+// DIBUJAR EXPLOSIONES Y PARTÍCULAS
+// ==========================================
+
+function drawEffects() {
+    explosions.forEach(e => {
+        const progress = 1 - e.life / e.maxLife;
+
+        ctx.globalAlpha = Math.max(0, e.life / e.maxLife);
+
+        ctx.fillStyle = "#ff9d25";
+        ctx.beginPath();
+        ctx.arc(
+            e.x,
+            e.y,
+            e.radius + progress * e.maxRadius,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+
+        ctx.fillStyle = "#fff0a3";
+        ctx.beginPath();
+        ctx.arc(
+            e.x,
+            e.y,
+            (e.radius + progress * e.maxRadius) * 0.45,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+    });
+
+    particles.forEach(p => {
+        ctx.globalAlpha = Math.max(0, p.life / 35);
+        ctx.fillStyle = p.water ? "#a6e8ff" : "#d99a5a";
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    splashes.forEach(s => {
+        ctx.globalAlpha = s.life / s.maxLife;
+        ctx.strokeStyle = "#b6e9f7";
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.arc(
+            s.x,
+            s.y,
+            (s.maxLife - s.life) * 1.8,
+            Math.PI,
+            Math.PI * 2
+        );
+        ctx.stroke();
+    });
+
+    ctx.globalAlpha = 1;
+}
+
+// ==========================================
+// COLISIONES
+// ==========================================
+
+function overlap(a, b) {
+    return (
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y
+    );
+}
+
+function bulletHitsEnemy(bullet, enemy) {
+    return (
+        bullet.x > enemy.x &&
+        bullet.x < enemy.x + enemy.w &&
+        bullet.y > enemy.y &&
+        bullet.y < enemy.y + enemy.h
+    );
+}
+
+// ==========================================
+// ACTUALIZACIÓN DEL JUEGO
+// ==========================================
+
+function update() {
+    if (!running) return;
+
+    frame++;
+
+    // MOVIMIENTO DEL AVIÓN
+
+    if (keys["arrowup"] || keys["w"] || keys["up"]) {
+        player.y -= player.speed;
+    }
+
+    if (keys["arrowdown"] || keys["s"] || keys["down"]) {
+        player.y += player.speed;
+    }
+
+    if (keys["arrowleft"] || keys["a"] || keys["left"]) {
+        player.x -= player.speed;
+    }
+
+    if (keys["arrowright"] || keys["d"] || keys["right"]) {
+        player.x += player.speed;
+    }
+
+    player.x = Math.max(5, Math.min(W - player.w - 5, player.x));
+    player.y = Math.max(5, Math.min(SEA - player.h + 3, player.y));
+
+    if (player.shootCooldown > 0) player.shootCooldown--;
+    if (player.bombCooldown > 0) player.bombCooldown--;
+    if (player.invulnerable > 0) player.invulnerable--;
+
+    if (keys["shoot"]) shoot();
+    if (keys["bomb"]) dropBomb();
+
+    // APARICIÓN DE ENEMIGOS
+
+    if (frame % 105 === 0) createEnemy();
+    if (frame % 205 === 0) createShip();
+
+    // MOVIMIENTO DE AVIONES ENEMIGOS
+
+    enemies.forEach(enemy => {
+        enemy.x -= enemy.speed;
+
+        enemy.y += Math.sin(frame * 0.045 + enemy.phase) * 1.5;
+
+        enemy.shootCooldown--;
+        enemy.missileCooldown--;
+
+        if (enemy.shootCooldown <= 0) {
+            enemyShoot(enemy.x, enemy.y + enemy.h / 2);
+            enemy.shootCooldown = rand(85, 135);
+        }
+
+        if (enemy.missileCooldown <= 0) {
+            enemyMissile(enemy.x, enemy.y + enemy.h / 2);
+            enemy.missileCooldown = rand(220, 300);
+        }
+    });
+
+    enemies = enemies.filter(e => e.x > -100);
+
+    // MOVIMIENTO DE BARCOS
+
+    ships.forEach(ship => {
+        ship.x -= ship.speed;
+        ship.shootCooldown--;
+
+        if (s
 
