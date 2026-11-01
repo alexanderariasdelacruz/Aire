@@ -707,3 +707,4 @@ document.querySelectorAll("[data-key]").forEach(button => {
 
 drawBackground();
 drawPlayer();
+
