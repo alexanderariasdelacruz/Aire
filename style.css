@@ -1,209 +1,216 @@
 
 * {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
 }
 
 body {
-    background: #080e18;
-    color: white;
-    font-family: Arial, sans-serif;
     min-height: 100vh;
+    padding: 16px;
+    background: #101820;
+    color: #f1f4f6;
+    font-family: Arial, Helvetica, sans-serif;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    padding: 15px;
 }
 
-.game-container {
-    width: 100%;
-    max-width: 1100px;
-}
-
-.top-bar {
-    background: linear-gradient(90deg, #101e30, #172b40);
-    border: 1px solid #31516b;
-    padding: 15px 20px;
+.topbar {
+    width: min(1100px, 100%);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-radius: 10px 10px 0 0;
+    gap: 15px;
+    margin-bottom: 12px;
 }
 
 .logo {
-    color: #42caff;
-    font-size: 25px;
+    color: #e5ebee;
+    font-size: 27px;
     font-weight: 900;
-    letter-spacing: 3px;
-    text-shadow: 0 0 12px #168bff;
+    letter-spacing: 4px;
 }
 
-.stats {
+.logo span {
+    color: #d6a34e;
+}
+
+.hud {
     display: flex;
-    gap: 25px;
+    gap: 10px;
+}
+
+.hud-item {
+    padding: 10px 14px;
+    border: 1px solid #526575;
+    border-radius: 7px;
+    background: #253542;
     font-size: 13px;
+    font-weight: bold;
 }
 
-.stats b {
-    color: #4bdcff;
-    font-size: 17px;
+.hud-item span {
+    color: #f2c46e;
 }
 
-.game-area {
-    width: 100%;
+.game-container {
     position: relative;
+    width: min(1100px, 100%);
     overflow: hidden;
-    background: #061a2b;
-    border: 1px solid #31516b;
+    border: 3px solid #748794;
+    border-radius: 9px;
+    background: #6bb6df;
+    box-shadow: 0 12px 35px #0008;
 }
 
-canvas {
+#gameCanvas {
     display: block;
     width: 100%;
     height: auto;
 }
 
-.overlay {
+.screen {
     position: absolute;
     inset: 0;
-    background: rgba(3, 12, 24, 0.88);
+    z-index: 5;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 15px;
+    align-items: center;
+    padding: 18px;
+    background: #07131dcc;
     text-align: center;
-}
-
-.overlay h1 {
-    font-size: clamp(30px, 7vw, 65px);
-    color: #48d7ff;
-    letter-spacing: 5px;
-    text-shadow: 0 0 25px #087cff;
-}
-
-.overlay p {
-    letter-spacing: 5px;
-    color: #a8dfff;
-}
-
-.overlay button {
-    padding: 15px 30px;
-    background: linear-gradient(90deg, #087cff, #19c8e8);
-    border: none;
-    border-radius: 5px;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
 }
 
 .hidden {
     display: none !important;
 }
 
-.controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 10px;
-    gap: 15px;
+.panel {
+    width: min(440px, 100%);
+    padding: 28px;
+    border: 1px solid #718594;
+    border-radius: 13px;
+    background: #172633;
+    box-shadow: 0 12px 35px #0009;
 }
 
-.movement {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
+.panel h1 {
+    margin: 8px 0 14px;
+    font-size: clamp(25px, 5vw, 38px);
+    letter-spacing: 3px;
 }
 
-.horizontal {
-    display: flex;
-    gap: 5px;
+.panel p {
+    color: #d1dce4;
+    line-height: 1.6;
+    margin-bottom: 20px;
 }
 
-.controls button {
-    border: 1px solid #3683ae;
-    background: linear-gradient(145deg, #183a54, #0b1d30);
-    color: #e8f8ff;
+.panel .eyebrow {
+    margin-bottom: 5px;
+    color: #d9ad5e;
+    font-size: 11px;
     font-weight: bold;
+    letter-spacing: 3px;
+}
+
+button {
+    border: 0;
+    border-radius: 8px;
+    padding: 12px 18px;
+    background: #d1a04a;
+    color: #17202a;
+    font-weight: 900;
     cursor: pointer;
     touch-action: none;
     user-select: none;
+    -webkit-user-select: none;
 }
 
-.movement button {
-    width: 55px;
-    height: 45px;
-    border-radius: 8px;
-    font-size: 20px;
+button:active {
+    transform: scale(.95);
 }
 
-.actions {
+.controls {
+    width: min(1100px, 100%);
     display: flex;
-    gap: 10px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-top: 14px;
 }
 
-.actions button {
-    padding: 16px 20px;
-    border-radius: 8px;
+.move-controls,
+.action-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.controls button {
+    min-width: 54px;
+    min-height: 48px;
+    border: 1px solid #657b89;
+    background: #293c4a;
+    color: white;
+    font-size: 15px;
+}
+
+.controls button.action {
+    min-width: 110px;
+    background: #8e672e;
+    border-color: #d6a34e;
+}
+
+.controls button.bomb-button {
+    background: #5c4930;
+}
+
+.instructions {
+    width: min(1100px, 100%);
+    margin-top: 12px;
+    color: #aebbc5;
     font-size: 12px;
-}
-
-.shoot {
-    box-shadow: 0 0 12px #168bff;
-}
-
-.bomb {
-    border-color: #d58a37 !important;
-    color: #ffc36d !important;
-}
-
-.controls button:active {
-    background: #147cb5;
-    transform: scale(0.95);
-}
-
-footer {
+    line-height: 1.6;
     text-align: center;
-    color: #69859b;
-    font-size: 11px;
-    padding: 12px;
 }
 
-@media (max-width: 550px) {
+@media (max-width: 650px) {
     body {
-        padding: 5px;
+        padding: 8px;
     }
 
-    .top-bar {
-        padding: 12px 8px;
+    .topbar {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
-    .logo {
-        font-size: 19px;
-    }
-
-    .stats {
-        gap: 10px;
-        font-size: 10px;
+    .hud {
+        width: 100%;
+        justify-content: space-between;
     }
 
     .controls {
-        padding: 12px 2px;
+        flex-direction: column;
+        align-items: stretch;
     }
 
-    .movement button {
-        width: 43px;
-        height: 40px;
+    .move-controls,
+    .action-controls {
+        justify-content: center;
     }
 
-    .actions {
-        gap: 5px;
+    .controls button {
+        flex: 1;
     }
 
-    .actions button {
-        padding: 13px 9px;
-        font-size: 10px;
+    .controls button.action {
+        flex: 1;
     }
-}
+
+    .panel {
+        padding: 20px;
+    }
+    }    
+
