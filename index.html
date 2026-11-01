@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SKY WAR - Ocean Strike</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <main class="game-container">
+
+        <header class="top-bar">
+            <div class="logo">SKY WAR</div>
+            <div class="stats">
+                <span>VIDAS: <b id="lives">3</b></span>
+                <span>PUNTOS: <b id="score">0</b></span>
+            </div>
+        </header>
+
+        <section class="game-area">
+            <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+            <div id="startScreen" class="overlay">
+                <h1>SKY WAR</h1>
+                <p>OCEAN STRIKE</p>
+                <button id="startBtn">INICIAR MISIÓN</button>
+            </div>
+
+            <div id="gameOver" class="overlay hidden">
+                <h1>MISIÓN TERMINADA</h1>
+                <p>Puntuación: <span id="finalScore">0</span></p>
+                <button id="restartBtn">VOLVER A JUGAR</button>
+            </div>
+        </section>
+
+        <section class="controls">
+
+            <div class="movement">
+                <button data-key="up">▲</button>
+                <div class="horizontal">
+                    <button data-key="left">◀</button>
+                    <button data-key="down">▼</button>
+                    <button data-key="right">▶</button>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="shoot" data-key="shoot">DISPARAR</button>
+                <button class="bomb" data-key="bomb">BOMBA</button>
+            </div>
+
+        </section>
+
+        <footer>
+            SKY WAR © 2026 | COMBATE AÉREO 2D
+        </footer>
+
+    </main>
+
+    <script src="script.js"></script>
+</body>
+  </html>
+                              
